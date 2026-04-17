@@ -25,6 +25,9 @@ uses
   //FMX.Dialogs.Android,
   Androidapi.JNI.Support,
 {$ENDIF}
+{$IFDEF LINUX}
+  Posix.Stdlib,
+{$ENDIF}
   fpdf;
 
 type
@@ -95,15 +98,7 @@ begin
   // iOS: use UIDocumentInteractionController via platform services
   ShowMessage('PDF salvo em: ' + AFile);
 {$ELSEIF DEFINED(LINUX)}
-  var Proc: TProcess;  // requires Process unit
-  Proc := TProcess.Create(nil);
-  try
-    Proc.Executable := 'xdg-open';
-    Proc.Parameters.Add(AFile);
-    Proc.Execute;
-  finally
-    Proc.Free;
-  end;
+  _system(PAnsiChar(AnsiString('xdg-open "' + AFile + '" &')));
 {$ELSE}
   ShowMessage('PDF salvo em: ' + AFile);
 {$ENDIF}
