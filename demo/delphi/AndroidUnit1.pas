@@ -7,6 +7,9 @@ uses
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
   FMX.Controls.Presentation, FMX.StdCtrls,
   System.IOUtils,
+{$IFDEF MSWINDOWS}
+  Winapi.Windows, Winapi.ShellAPI,
+{$ENDIF}
 {$IFDEF ANDROID}
   Androidapi.JNI.GraphicsContentViewText,
   Androidapi.JNI.provider,
@@ -17,9 +20,10 @@ uses
   Androidapi.JNIBridge,
   FMX.Helpers.Android,
   Androidapi.Helpers,
-  IdUri,
+  //IdUri,
   FMX.Platform.Android,
-  FMX.Dialogs.Android,
+  //FMX.Dialogs.Android,
+  Androidapi.JNI.Support,
 {$ENDIF}
   fpdf;
 
@@ -65,23 +69,44 @@ begin
 end;
 
 procedure TForm1.ShowPDF(const AFile: String);
-var
-  Intent: JIntent;
-  J: JFile;
 begin
-  // Certifique-se de que o arquivo existe
-  if TFile.Exists(AFile) then
+  if not TFile.Exists(AFile) then
   begin
-    // start PDF viewer
-    Intent := TJIntent.JavaClass.init;
-    Intent.setAction(TJIntent.JavaClass.ACTION_VIEW);
-    J := TJFile.JavaClass.init(StringToJString(AFile));
-    Intent.setDataAndType(TAndroidHelper.JFileToJURI(J), StringToJString('application/pdf'));
-    Intent.setFlags(TJintent.JavaClass.FLAG_GRANT_READ_URI_PERMISSION);
-    SharedActivity.StartActivity(Intent);
-  end
-  else
     ShowMessage('Arquivo PDF não encontrado.');
+    Exit;
+  end;
+
+{$IFDEF ANDROID}
+  var Intent: JIntent;
+  var J: JFile;
+  Intent := TJIntent.JavaClass.init;
+  Intent.setAction(TJIntent.JavaClass.ACTION_VIEW);
+  J := TJFile.JavaClass.init(StringToJString(AFile));
+  Intent.setDataAndType(TAndroidHelper.JFileToJURI(J), StringToJString('application/pdf'));
+  Intent.setFlags(TJIntent.JavaClass.FLAG_GRANT_READ_URI_PERMISSION);
+  {$IF CompilerVersion >= 35.0}
+  TAndroidHelper.Activity.startActivity(Intent);
+  {$ELSE}
+  SharedActivity.startActivity(Intent);
+  {$IFEND}
+{$ELSEIF DEFINED(MSWINDOWS)}
+  ShellExecute(0, 'open', PChar(AFile), nil, nil, SW_SHOWNORMAL);
+{$ELSEIF DEFINED(IOS)}
+  // iOS: use UIDocumentInteractionController via platform services
+  ShowMessage('PDF salvo em: ' + AFile);
+{$ELSEIF DEFINED(LINUX)}
+  var Proc: TProcess;  // requires Process unit
+  Proc := TProcess.Create(nil);
+  try
+    Proc.Executable := 'xdg-open';
+    Proc.Parameters.Add(AFile);
+    Proc.Execute;
+  finally
+    Proc.Free;
+  end;
+{$ELSE}
+  ShowMessage('PDF salvo em: ' + AFile);
+{$ENDIF}
 end;
 
 end.
